@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "ChessLens",
   "short_name": "ChessLens",
-  "version": "2.7.15",
-  "description": "Review verified finished Chess.com Live and Daily games with local Stockfish and badges on the Chess.com board.",
+  "version": "2.7.17",
+  "description": "Review finished Chess.com Live and Daily games with local Stockfish, move badges, an evaluation graph, and accuracy.",
   "minimum_chrome_version": "141",
   "permissions": [
     "sidePanel",

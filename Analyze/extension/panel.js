@@ -29,11 +29,53 @@ let engineStartupTimer, engineRetryTimer, engineFailures=0;
 let lastArrow = undefined, arrowClearTimer;
 const rowElements = [];
 const reviewKinds = ['brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'miss', 'blunder'];
+let renderedTimeline;
+
+function renderReviewChart(timeline, ply) {
+  const x = index => 4 + 312 * index / Math.max(1, timeline.length - 1);
+  const y = score => 38 - score * 4;
+  const timelineKey = JSON.stringify(timeline);
+  if (timelineKey !== renderedTimeline) {
+    renderedTimeline = timelineKey;
+    const segments = [];
+    let segment = [];
+    timeline.forEach((score, index) => {
+      if (Number.isFinite(score)) {
+        if (!segment.length) segments.push(segment);
+        segment.push([x(index), y(score)]);
+      } else {
+        segment = [];
+      }
+    });
+    const path = points => 'M' + points.join('L');
+    $('review-chart-line').setAttribute('d', segments.map(points =>
+      path(points.length === 1 ? [points[0], points[0]] : points)).join(''));
+    $('review-chart-area').setAttribute('d', segments.map(points =>
+      path(points) + `L${points.at(-1)[0]},38L${points[0][0]},38Z`).join(''));
+  }
+  const selected = Number.isInteger(ply) && ply >= 0 && ply < timeline.length;
+  const score = selected ? timeline[ply] : null;
+  const hasScore = Number.isFinite(score);
+  $('review-chart-cursor').setAttribute('d', selected ? `M${x(ply)} 0V76` : '');
+  const point = $('review-chart-point');
+  point.style.display = hasScore ? '' : 'none';
+  if (hasScore) {
+    point.setAttribute('cx', x(ply));
+    point.setAttribute('cy', y(score));
+  }
+  const label = !hasScore ? '—' : Math.abs(score) < .005 ? '0.00'
+    : `${Math.abs(score) === 8 ? '≥' : ''}${Math.abs(score).toFixed(2)} · ${score > 0 ? 'White' : 'Black'}`;
+  put('review-chart-value', label);
+}
 
 function renderGameReview(review) {
   $('game-review').hidden = !review;
   if (!review) return;
   const { w, b } = review.sides;
+  renderReviewChart(review.timeline || [], review.ply);
+  for (const [color, side] of Object.entries({ w, b })) {
+    put(`review-accuracy-${color}`, Number.isFinite(side.accuracy) ? `${side.accuracy.toFixed(1)}%` : '—');
+  }
   for (const kind of reviewKinds) {
     put(`review-${kind}-w`, w.counts[kind] || 0);
     put(`review-${kind}-b`, b.counts[kind] || 0);

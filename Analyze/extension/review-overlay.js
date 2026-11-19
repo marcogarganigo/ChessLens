@@ -12,6 +12,7 @@
   const positionScores=new Map(); // Genuine UCI evaluations across all move positions
   const playedScores=new Map();
   const resultCache=new Map();
+  let reviewStats=null, viewedPly=null;
   const api=()=>({Chess:window.ChessLensChess,findBoard:window.ChessLensBoard,
     pieces:window.ChessLensPieceMap,placement:window.ChessLensPlacement,isAllowed:window.ChessLensAllowed});
   const keyFor=m=>m?.before&&m?.uci?`${m.before}|${m.uci}`:null;
@@ -140,19 +141,40 @@
     }
     return result;
   }
-  function refreshProgress(){
-    if(!layer)return;
-    const sides={w:{total:0,reviewed:0,counts:{}},b:{total:0,reviewed:0,counts:{}}};
+  function whiteEvaluation(fen){
+    const result=positionScores.get(fen);
+    const sign=fen.split(' ')[1]==='w'?1:-1;
+    if(result?.terminal)return new (api().Chess)(fen).isCheckmate()?-8*sign:0;
+    if(!Number.isFinite(result?.score?.value))return null;
+    const {type,value}=result.score;
+    const pawns=type==='mate'?8*Math.sign(value):value/100;
+    return Math.max(-8,Math.min(8,pawns*sign));
+  }
+  function summarizeGame(){
+    const sides={w:{total:0,reviewed:0,counts:{},accuracy:null},b:{total:0,reviewed:0,counts:{},accuracy:null}};
+    const losses={w:0,b:0};
+    const timeline=history.length?[whiteEvaluation(history[0].before)]:[];
     for(const move of history){
+      timeline.push(whiteEvaluation(move.after));
       const side=sides[move.turn];
       side.total++;
       const result=ratingFor(move);
       if(!result)continue;
       side.reviewed++;
+      losses[move.turn]+=result.loss;
       side.counts[result.kind]=(side.counts[result.kind]||0)+1;
     }
+    for(const color of ['w','b']){
+      const side=sides[color];
+      if(side.total&&side.reviewed===side.total)side.accuracy=100*(1-losses[color]/side.total);
+    }
+    return {sides,timeline};
+  }
+  function refreshProgress(){
+    if(!layer)return;
+    const {sides,timeline}=reviewStats??=summarizeGame();
     const complete=sides.w.reviewed+sides.b.reviewed;
-    window.ChessLensReviewSummary=history.length?{sides,current:currentMove&&{
+    window.ChessLensReviewSummary=history.length?{sides,timeline,ply:viewedPly,current:currentMove&&{
       side:currentMove.turn,san:currentMove.san,fen:currentMove.after,kind:review?.kind||'pending',
       best:positionScores.get(currentMove.after)?.best
     }}:null;
@@ -217,6 +239,7 @@
           positionScores.set(message.fen,message.result);
           if(positionScores.size>2500)positionScores.delete(positionScores.keys().next().value);
         }
+        reviewStats=null;
         // When either half of a move becomes available, immediately update the
         // selected move; in the meantime the rest of the game keeps analyzing.
         review=ratingFor(currentMove);refreshProgress();draw();
@@ -256,7 +279,8 @@
     if(sig!==historyKey){
       historyKey=sig;
       history=verified.moves.map((move,index)=>({...move,turn:move.color,
-        uci:move.from+move.to+(move.promotion||''),previousFen:verified.moves[index-1]?.before}));
+        uci:move.from+move.to+(move.promotion||''),previousFen:verified.moves[index-1]?.before,ply:index+1}));
+      reviewStats=null;
       gameId++;submittedId=-1;acceptedCount=0;displayKey='';
     }
     const placement=source.placement(source.pieces(board));
@@ -272,7 +296,8 @@
         matching.includes(hinted)?hinted:
         matching.findLast(move=>move.to===lastTarget)||
         matching.at(-1)||null;
-      if(keyFor(selected)!==keyFor(currentMove)||selected?.to!==currentMove?.to)choose(selected);
+      viewedPly=atStart?0:selected?.ply??null;
+      if(selected!==currentMove)choose(selected);
     }
     if((history.length||currentMove)&&submittedId!==gameId){if(!port)connect();requestGame();}
     refreshProgress();draw();

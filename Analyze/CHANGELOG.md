@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.17
+
+- Add a compact Stockfish evaluation graph and per-player accuracy to Game Review.
+- Recognize the current Chess.com player labels and use the finish date when the native Info tab displays it.
+- Prepare the English Chrome Web Store listing, reviewer instructions, and privacy disclosures.
+
 ## 2.7.10
 
 - Use larger, dedicated toolbar icons while retaining the Chrome Web Store icon's 16 px transparent margin.

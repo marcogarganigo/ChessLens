@@ -79,8 +79,19 @@
 
       <details id="game-review" class="review-disclosure" hidden>
         <summary>Game review <span class="chevron" aria-hidden="true"></span></summary>
+        <div class="review-chart">
+          <div class="review-chart-heading"><span>Evaluation</span><span id="review-chart-value"></span></div>
+          <svg id="review-chart" viewBox="0 0 320 76" preserveAspectRatio="none" role="img" aria-label="Stockfish evaluation over the game. Above the middle line favors White, below favors Black.">
+            <path id="review-chart-area"></path>
+            <path class="review-chart-zero" d="M0 38H320"></path>
+            <path id="review-chart-line"></path>
+            <path id="review-chart-cursor"></path>
+            <circle id="review-chart-point" r="2.5"></circle>
+          </svg>
+        </div>
         <table class="review-table">
           <thead><tr><th scope="col">Move quality</th><th scope="col">White</th><th scope="col">Black</th></tr></thead>
+          <tbody class="review-accuracy"><tr><th scope="row" title="ChessLens estimate based on the average expected-points loss per move">Accuracy</th><td id="review-accuracy-w">—</td><td id="review-accuracy-b">—</td></tr></tbody>
           <tbody id="review-counts"></tbody>
           <tfoot><tr><th scope="row">Reviewed</th><td id="review-white"></td><td id="review-black"></td></tr></tfoot>
         </table>

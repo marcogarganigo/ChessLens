@@ -308,10 +308,8 @@ function updatePositions() {
   arrow.classList.add('visible');
 }
 
-let requestedGameKey, lastArchiveProbe=0;
+let requestedGameKey, lastArchiveProbe=0, lastArchiveHints='';
 function publicArchiveHints(){
-  const page=new URL(location.href);
-  const fromUrl=page.searchParams.get('username');
   // Public profile links identify the players. Moves and results come only from PubAPI.
   const playerLinks=document.querySelectorAll(
     '.player-component a[href],.player-tagline a[href],a.user-username-component[href],'+
@@ -324,14 +322,19 @@ function publicArchiveHints(){
   }
   const playerNames=document.querySelectorAll(
     '.board-layout-player .user-username-component,.player-component .user-username-component,'+
+    '.player-tagline [data-user-block-part="username"],'+
     '[data-cy="player-name"],[data-testid="player-name"]');
-  for(const name of playerNames)candidates.push(name.textContent.trim());
-  candidates.push(fromUrl);
+  for(const name of playerNames){
+    const displayedName=name.textContent.trim();
+    if(displayedName!=='Opponent'&&displayedName!=='Player')candidates.push(displayedName);
+  }
   const username=candidates.find(name=>/^[a-z\d_-]{1,50}$/i.test(name||''));
   const now=new Date();
   const monthAt=(date,offset)=>new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+offset,1)).toISOString().slice(0,7);
   const dateElement=document.querySelector('time[datetime], [data-cy="game-date"], [data-testid="game-date"], .game-date');
-  const rawDate=dateElement?.getAttribute('datetime')||dateElement?.textContent.trim();
+  const finishedDate=[...document.querySelectorAll('.game-info-tab-component .user-selectable > div')]
+    .map(element=>element.textContent.trim().match(/^Finished:\s*(.+)$/i)?.[1]).find(Boolean);
+  const rawDate=finishedDate||dateElement?.getAttribute('datetime')||dateElement?.textContent.trim();
   const gameDate=rawDate?new Date(rawDate):null;
   const datedMonths=Number.isFinite(gameDate?.getTime())?[monthAt(gameDate,0),monthAt(gameDate,1)]:[];
   const months=[...new Set([...datedMonths,monthAt(now,0),monthAt(now,-1),monthAt(now,-2)])]
@@ -347,12 +350,16 @@ function syncBoard(force = false) {
     window.ChessLensReviewSummary=null;
     arrowUci=null;
     lastArchiveProbe=0;
+    lastArchiveHints='';
   }
-  if(boardPort&&key&&!window.ChessLensVerifiedGame&&Date.now()-lastArchiveProbe>=15000){
+  if(boardPort&&key&&!window.ChessLensVerifiedGame){
     const {username,months}=publicArchiveHints();
-    // Try again as soon as Chess.com has rendered a player identity.
-    lastArchiveProbe=Date.now()-(username?0:14000);
-    if(!postBoard({type:'GET_VERIFICATION',key,username,months}))return;
+    const hints=username&&username.toLowerCase()+'|'+months.join(',');
+    if(hints&&(hints!==lastArchiveHints||Date.now()-lastArchiveProbe>=15000)){
+      lastArchiveProbe=Date.now();
+      lastArchiveHints=hints;
+      if(!postBoard({type:'GET_VERIFICATION',key,username,months}))return;
+    }
   }
   if (boardPort) {
     try {
@@ -381,6 +388,7 @@ function resetBoardPort(connection) {
   lastSnapshot='';
   requestedGameKey=undefined;
   lastArchiveProbe=0;
+  lastArchiveHints='';
   window.ChessLensVerifiedGame=null;
   window.ChessLensReviewSummary=null;
   arrowUci=null;

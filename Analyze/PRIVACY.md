@@ -10,4 +10,4 @@ ChessLens compares the game identifier against the archive locally. Once it conf
 
 ChessLens does not operate a server and contains no analytics, advertising or account system.
 
-For privacy questions, contact the maintainer through the [ChessLens project](https://github.com/marcogarganigo/ChessLens).
+For privacy questions, use the developer contact listed on the ChessLens Chrome Web Store page.
