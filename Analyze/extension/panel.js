@@ -26,7 +26,6 @@ let queued = null, current = null, viewed = null, siteState = null;
 let depth = 14, showArrow = true, engineError = '', boundTabId = null;
 let activePanelVisible = false, hasDisplayedAnalysis = false;
 let engineStartupTimer, engineRetryTimer, engineFailures=0;
-let unmatchedBoardTimer;
 let lastArrow = undefined, arrowClearTimer;
 const rowElements = [];
 const reviewKinds = ['brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'miss', 'blunder'];
@@ -53,7 +52,7 @@ for (const kind of reviewKinds) {
   icon.setAttribute('viewBox', '0 0 24 24');
   icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = chessLensBadgeArtwork(kind);
-  category.append(icon, kind[0].toUpperCase() + kind.slice(1));
+  category.append(icon, chessLensBadgeLabel(kind));
   label.append(category);
   row.append(label);
   for (const side of ['w', 'b']) row.insertCell().id = `review-${kind}-${side}`;
@@ -93,18 +92,20 @@ function connect() {
         }
       }
       if (msg.type === 'SNAPSHOT') {
+        const resume=siteState?.positionPending&&siteState.gameKey===msg.state.gameKey;
         if(siteState?.gameKey!==msg.state.gameKey){
           stopAnalysis();
+          toggleActive(false);
         }
         siteState = msg.state;
-        refreshState();
+        refreshState(resume);
       }
     });
     port.onDisconnect.addListener(() => {
       void chrome.runtime.lastError;
       port = null;
-      siteState=null;
-      stopAnalysis();
+      siteState=activePanelVisible&&siteState?.gameKey
+        ?{allowed:false,gameKey:siteState.gameKey,positionPending:true}:null;
       refreshState();
       lastArrow = undefined;
       setTimeout(connect, 800);
@@ -311,7 +312,9 @@ function initEngine() {
   try {
     worker = new Worker(chrome.runtime.getURL('engine/stockfish-19-lite-single.js'));
     const searchWorker=worker;
-    worker.onmessage = event => { if(worker===searchWorker && siteState?.allowed)engineMessage(event); };
+    worker.onmessage = event => {
+      if(worker===searchWorker&&(siteState?.allowed||siteState?.positionPending))engineMessage(event);
+    };
     worker.onerror = event => {
       event.preventDefault?.();
       if(worker===searchWorker)engineFailed();
@@ -339,7 +342,7 @@ function enqueue(state, { force = false } = {}) {
     queued = null;
     return;
   }
-  if (queued?.key === target.key && !force) return;
+  if (!force && queued?.key===target.key && (worker||(!changed&&engineError))) return;
   queued = target;
   if (!worker) initEngine();
   if (!ready) return;
@@ -379,8 +382,6 @@ function stopAnalysis(){
   clearTimeout(engineStartupTimer);
   clearTimeout(engineRetryTimer);
   engineFailures=0;
-  clearTimeout(unmatchedBoardTimer);
-  unmatchedBoardTimer=undefined;
   worker?.terminate();
   worker=null;
   ready=thinking=stopping=hasDisplayedAnalysis=false;
@@ -389,32 +390,31 @@ function stopAnalysis(){
   engineError='';
 }
 
-function refreshState() {
+function refreshState(resume=false) {
   if(!siteState?.allowed){
-    if(siteState?.restricted||!siteState?.gameKey){
+    if(siteState?.positionPending&&activePanelVisible){
+      put('working','Updating…');
+      sendArrow(null);
+    }else{
       stopAnalysis();
       toggleActive(false);
       $('blocked').classList.remove('hidden');
-      put('blocked-reason',siteState?.reason||'Open a Live or Daily game on Chess.com.');
+      put('blocked-reason',siteState?.positionPending?'Waiting for the Chess.com position.':
+        siteState?.reason||'Open a Live or Daily game on Chess.com.');
       sendArrow(null);
-    }else if(activePanelVisible&&!unmatchedBoardTimer){
-      unmatchedBoardTimer=setTimeout(()=>{
-        if(siteState?.allowed)return;
-        stopAnalysis();
-        toggleActive(false);
-        put('blocked-reason',siteState?.reason||'Waiting for the verified game position.');
-      },650);
     }
     return;
   }
-  clearTimeout(unmatchedBoardTimer);
-  unmatchedBoardTimer=undefined;
   toggleActive(true);
   put('context-text','Completed game');
   put('source-pill','EXACT');
-  renderGameReview(siteState.review);
+  if(siteState.review||!resume)renderGameReview(siteState.review);
   put('warning',engineError);
   enqueue(siteState);
+  if(resume){
+    runQueued();
+    render();
+  }
 }
 
 $('refresh').addEventListener('click',()=>{

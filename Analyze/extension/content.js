@@ -23,14 +23,21 @@
 function ft(){
   const access=Ys(location.href);
   if(!access.allowed)return access;
+  const pending={...access,allowed:false,positionPending:true};
   const board=de();
-  if(!board)return {...access,allowed:false,reason:"Waiting for the Chess.com board."};
+  if(!board)return pending;
   const placement=ct(Hs(board));
   const current=window.ChessLensReviewSummary?.current;
   const start=window.ChessLensVerifiedGame.start;
-  const fen=current?.fen.split(" ")[0]===placement?current.fen:
-    start.split(" ")[0]===placement?start:null;
-  if(!fen)return {...access,allowed:false,reason:"Waiting for the selected move to match the verified game."};
+  const game=window.ChessLensVerifiedGame;
+  const ply=Number(new URL(location.href).searchParams.get('move'));
+  const hinted=game.moves[ply-1]?.after;
+  const positions=game.positions.get(placement);
+  const fen=hinted?.split(' ')[0]===placement?hinted:
+    positions?.length===1?positions[0]:
+    current?.fen.split(' ')[0]===placement?current.fen:
+    start.split(' ')[0]===placement?start:null;
+  if(!fen)return pending;
   return {...access,fen,source:"Verified archive"};
 }
 
@@ -70,20 +77,20 @@ window.ChessLensContentContext={
   onDisconnect:handleContentDisconnect
 };
 
-const launchWidth = 103, launchCompactWidth = 30, launchHeight = 30;
+const launchWidth = 90, launchCompactWidth = 30, launchHeight = 30;
 const launchStyle = `
 :host{all:initial;contain:layout style}
-button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:5px;
+button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;
   width:${launchWidth}px;height:${launchHeight}px;
   background:#242629;color:#f3f4f5;font:600 12px/1 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
-  border:1px solid #4b4e52;border-radius:7px;cursor:pointer;white-space:nowrap;
+  border:1px solid #3e4144;border-radius:6px;cursor:pointer;white-space:nowrap;
   transition:background-color .12s ease,border-color .12s ease}
-button:hover{background:#36393c;border-color:#6e7277}
-button[data-open="true"]{background:#393c40;border-color:#858a90}
+button:hover{background:#303336;border-color:#51565a}
+button[data-open="true"]{background:#33373a;border-color:#61666a}
 button:active{background:#1d1f21}
 button:focus-visible{outline:2px solid #e2e5e8;outline-offset:2px}
 button[aria-disabled="true"]{cursor:progress}
-img{width:17px;height:17px;display:block;object-fit:contain;flex-shrink:0}
+img{width:22px;height:22px;display:block;object-fit:contain;flex-shrink:0}
 span{white-space:nowrap}
 :host([data-compact="true"]) button{width:${launchCompactWidth}px;padding:0}
 :host([data-compact="true"]) span{display:none}
@@ -154,7 +161,7 @@ function ensureUi() {
     icon.src = chrome.runtime.getURL('assets/icon32.png');
     icon.alt = '';
     const label = document.createElement('span');
-    label.textContent = 'ChessLens';
+    label.textContent = 'Analyze';
     button.append(icon, label);
     button.addEventListener('mousedown',event=>{if(event.button===0)event.preventDefault();});
     button.addEventListener('click', requestPanelToggle);
@@ -350,6 +357,7 @@ function syncBoard(force = false) {
   if (boardPort) {
     try {
       const state = ft();
+      if(state.positionPending)arrowUci=null;
       if (state.allowed && window.ChessLensReviewSummary) state.review = window.ChessLensReviewSummary;
       const serialized = JSON.stringify(state);
       if (force || serialized !== lastSnapshot) {
@@ -400,7 +408,14 @@ function connectBoardPort() {
           game.loadPgn(message.pgn);
           const moves=game.history({verbose:true});
           if(!moves.length)throw Error('No moves to review');
-          window.ChessLensVerifiedGame={key:message.key,start:moves[0].before,moves};
+          const start=moves[0].before;
+          const positions=new Map();
+          for(const fen of [start,...moves.map(move=>move.after)]){
+            const placement=fen.split(' ')[0];
+            if(!positions.has(placement))positions.set(placement,[]);
+            positions.get(placement).push(fen);
+          }
+          window.ChessLensVerifiedGame={key:message.key,start,moves,positions};
           syncBoard(true);
         } catch { window.ChessLensVerifiedGame=null; }
       }

@@ -84,6 +84,11 @@ function broadcast(tabId, state) {
     safePost(panel.port, { type: 'SNAPSHOT', state });
   }
 }
+function unavailableGameState(gameKey){
+  if(gameKey&&verifiedGames.has(gameKey))return {allowed:false,gameKey,positionPending:true};
+  return {allowed:false,gameKey,restricted:true,
+    reason:gameKey?'No analysis available for this game.':'Open a Live or Daily game on Chess.com.'};
+}
 function bindPanel(item) {
   const request = ++item.bindingRequest;
   const query = item.windowId===null ? {active:true,lastFocusedWindow:true} : {active:true,windowId:item.windowId};
@@ -104,8 +109,7 @@ function bindPanel(item) {
     const boardState = latest.get(tabId);
     const gameKey=tab.pendingUrl?null:chessComGameKey(tab.url);
     if (boardState && boardState.gameKey===gameKey) safePost(item.port,{type:'SNAPSHOT',state:boardState});
-    else safePost(item.port,{type:'SNAPSHOT',state:{allowed:false,restricted:true,gameKey,
-      reason:gameKey?'No analysis available for this game.':'Open a Live or Daily game on Chess.com.'}});
+    else safePost(item.port,{type:'SNAPSHOT',state:unavailableGameState(gameKey)});
     safePost(boardPorts.get(tabId), { type: 'GET_STATE' });
   });
 }
@@ -151,20 +155,23 @@ chrome.runtime.onConnect.addListener(port => {
     port.onMessage.addListener(async msg => {
       if(msg?.type==='GET_VERIFICATION')verifyBoardGame(port,tabId,msg);
       if (msg?.type === 'SNAPSHOT' && msg.state) {
-        if(msg.state.allowed&&!verifiedGames.has(msg.state.gameKey))return;
+        const verified=verifiedGames.has(msg.state.gameKey);
+        if((msg.state.allowed||msg.state.positionPending)&&!verified)return;
+        const state=msg.state.restricted&&verified?unavailableGameState(msg.state.gameKey):msg.state;
         const previous=latest.get(tabId);
-        latest.set(tabId,msg.state);
-        if(previous?.gameKey!==msg.state.gameKey || msg.state.restricted){
+        latest.set(tabId,state);
+        if(previous?.gameKey!==state.gameKey || state.restricted){
           if(previous?.allowed)reviewPorts.get(tabId)?.disconnect();
         }
-        broadcast(tabId,msg.state);
+        broadcast(tabId,state);
       }
     });
-    port.onDisconnect.addListener(() => {
+    port.onDisconnect.addListener(async () => {
       if (boardPorts.get(tabId) === port) {
         boardPorts.delete(tabId);
         latest.delete(tabId);
-        broadcast(tabId, { allowed: false, reason: 'Page disconnected' });
+        const key=await currentGameKey(tabId);
+        if(!boardPorts.has(tabId))broadcast(tabId,unavailableGameState(key));
       }
     });
     safePost(port, { type: 'PANEL_STATE', open: isPanelConnected(tabId) || desiredPanelState.get(tabId) === true });

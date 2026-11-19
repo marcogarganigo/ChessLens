@@ -53,8 +53,10 @@
     const file=currentMove.to.charCodeAt(0)-97,rank=Number(currentMove.to[1])-1;
     if(file<0||file>7||rank<0||rank>7){badge.style.display='none';return;}
     const orientation=flipped(board),col=orientation?7-file:file,row=orientation?rank:7-rank;
-    const size=Math.min(28,Math.max(14,Math.min(r.width,r.height)/8*.36));
-    const cx=(col+.80)*r.width/8,cy=(row+.20)*r.height/8;
+    const size=Math.min(32,Math.max(12,Math.min(r.width,r.height)/8*.38));
+    // Use the same offset on every square, including corners at the edge of the board.
+    const cx=(col+1)*r.width/8-size*.16;
+    const cy=row*r.height/8+size*.16;
     const kind=review?.kind||'pending';
     badge.style.display='';badge.setAttribute('transform',`translate(${cx-size/2} ${cy-size/2}) scale(${size/24})`);
     if(badge.dataset.kind!==kind){
@@ -242,7 +244,13 @@
       displayKey='';if(layer)layer.style.display='none';return;
     }
     const found=source.findBoard();if(!found){currentMove=null;review=null;window.ChessLensReviewSummary=null;displayKey='';if(layer)layer.style.display='none';return;}
-    if(found!==board){board=found;if(!layer)createOverlay();displayKey='';}
+    if(found!==board){
+      boardResize.disconnect();
+      board=found;
+      boardResize.observe(board);
+      if(!layer)createOverlay();
+      displayKey='';
+    }
     const verified=window.ChessLensVerifiedGame;
     const sig=verified.key;
     if(sig!==historyKey){
@@ -269,6 +277,7 @@
     if((history.length||currentMove)&&submittedId!==gameId){if(!port)connect();requestGame();}
     refreshProgress();draw();
   }
+  const boardResize=new ResizeObserver(draw);
   let debounce=0;
   const observer=new MutationObserver(records=>{
     if(!context.active())return;
@@ -279,6 +288,7 @@
   addEventListener('scroll',draw,{passive:true});addEventListener('resize',draw,{passive:true});
   const poll=setInterval(sync,700);
   context.onClose(()=>{
+    boardResize.disconnect();
     clearInterval(poll);
     clearTimeout(debounce);
     clearTimeout(retryTimer);

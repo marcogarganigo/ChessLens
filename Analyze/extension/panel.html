@@ -32,10 +32,14 @@
       <section class="settings" id="settings" hidden>
         <label class="setting" for="depth">Analysis depth <output id="depth-value">14</output></label>
         <input id="depth" type="range" min="8" max="20" step="1" value="14">
+        <label class="toggle-row" for="toggle-arrows">
+          <span>Show best-move arrow</span>
+          <input type="checkbox" id="toggle-arrows" checked>
+          <i aria-hidden="true"></i>
+        </label>
       </section>
 
       <section id="blocked" class="notice hidden">
-        <h2>ChessLens</h2>
         <p id="blocked-reason">Open a Live or Daily game on Chess.com.</p>
       </section>
 
@@ -70,12 +74,6 @@
           </div>
           <div id="lines" class="lines"></div>
         </div>
-
-        <label class="toggle-row" for="toggle-arrows">
-          <span>Show best-move arrow</span>
-          <input type="checkbox" id="toggle-arrows" checked>
-          <i aria-hidden="true"></i>
-        </label>
 
       </section>
 
