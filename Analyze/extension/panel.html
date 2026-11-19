@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>ChessLens</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/brand-mark.png" alt="" class="brand-icon">
+        <h1>ChessLens</h1>
+      </div>
+      <div class="top-actions">
+        <button type="button" id="refresh" class="ghost" title="Refresh">Refresh</button>
+        <button type="button" id="settings-btn" class="ghost" aria-controls="settings" aria-expanded="false">Settings</button>
+      </div>
+    </header>
+
+    <div class="status-bar sr-only" aria-hidden="true">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="context-text">Connecting…</span>
+      <span id="source-pill">LOCAL</span>
+      <span class="status-led"></span>
+      <span id="engine-status"></span>
+    </div>
+
+    <main class="main">
+      <section class="settings" id="settings" hidden>
+        <label class="setting" for="depth">Analysis depth <output id="depth-value">14</output></label>
+        <input id="depth" type="range" min="8" max="20" step="1" value="14">
+      </section>
+
+      <section id="blocked" class="notice hidden">
+        <h2>ChessLens</h2>
+        <p id="blocked-reason">Open a Live or Daily game on Chess.com.</p>
+      </section>
+
+      <section id="analysis" class="analysis hidden">
+        <div class="position-summary">
+          <div class="metrics">
+            <div class="metric score-card">
+              <span class="metric-label">Evaluation</span>
+              <strong id="score">—</strong>
+              <span id="score-lead" class="metric-help">Even</span>
+              <span id="depth-caption" class="sr-only">depth —</span>
+              <span id="score-sub" class="sr-only">Balanced position</span>
+            </div>
+            <div class="metric move-card">
+              <span class="metric-label">Best move</span>
+              <strong id="bestmove-line">—</strong>
+              <span id="move-explanation" class="metric-help"></span>
+            </div>
+          </div>
+
+          <div class="eval-track" aria-hidden="true">
+            <div class="eval-white" id="eval-white"></div>
+            <div class="eval-middle"></div>
+          </div>
+
+        </div>
+
+        <div class="variations">
+          <div class="variations-heading">
+            <h2>Variations</h2>
+            <span id="working" role="status"></span>
+          </div>
+          <div id="lines" class="lines"></div>
+        </div>
+
+        <label class="toggle-row" for="toggle-arrows">
+          <span>Show best-move arrow</span>
+          <input type="checkbox" id="toggle-arrows" checked>
+          <i aria-hidden="true"></i>
+        </label>
+
+      </section>
+
+      <details id="game-review" class="review-disclosure" hidden>
+        <summary>Game review <span class="chevron" aria-hidden="true"></span></summary>
+        <table class="review-table">
+          <thead><tr><th scope="col">Move quality</th><th scope="col">White</th><th scope="col">Black</th></tr></thead>
+          <tbody id="review-counts"></tbody>
+          <tfoot><tr><th scope="row">Reviewed</th><td id="review-white"></td><td id="review-black"></td></tr></tfoot>
+        </table>
+      </details>
+      <div id="warning" class="source-note"></div>
+
+    </main>
+    <div class="banner-slot" aria-hidden="true"></div>
+  </div>
+  <script src="move-badges.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

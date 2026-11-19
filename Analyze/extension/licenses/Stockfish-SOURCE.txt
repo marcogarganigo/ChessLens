@@ -1,0 +1,17 @@
+ChessLens bundles Stockfish.js 19.0.1, Lite, single-threaded (GPLv3).
+Copyright (c) 2026 Chess.com, LLC and the upstream Stockfish contributors.
+
+Corresponding source, including the WebAssembly build scripts:
+https://github.com/nmrugg/stockfish.js/tree/v19.0.1
+https://github.com/nmrugg/stockfish.js/archive/refs/tags/v19.0.1.tar.gz
+
+Build target: npm run build-single-lite
+Release and published checksums:
+https://github.com/nmrugg/stockfish.js/releases/tag/v19.0.1
+https://github.com/nmrugg/stockfish.js/releases/expanded_assets/v19.0.1
+
+SHA-256 of the unmodified release files bundled in ChessLens:
+ccb130d7ff29408531c47d859a49f91d59d4f482d05a53eb1a3231a4f624c91a  stockfish-19-lite-single.js
+ee4f115bdb2d32cadf96cada104a05b5ec257d7ad6f57582190b49bc71f096de  stockfish-19-lite-single.wasm
+
+See Stockfish-GPLv3.txt for the license text.

@@ -1,0 +1,4 @@
+* text=auto
+*.png binary
+*.wasm binary
+Analyze/extension/engine/stockfish-19-lite-single.js -text
